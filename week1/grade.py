@@ -222,6 +222,18 @@ def check_ex2() -> None:
 def check_ex3() -> None:
     record(None, "── Exercise 3 ──────────────────────────────────────────")
 
+    # Check CALM required files exist
+    for fname, label in [
+        ("exercise3_rasa/config.yml",       "config.yml"),
+        ("exercise3_rasa/domain.yml",       "domain.yml"),
+        ("exercise3_rasa/endpoints.yml",    "endpoints.yml"),
+        ("exercise3_rasa/data/flows.yml",   "data/flows.yml (CALM flows)"),
+    ]:
+        path = ROOT / fname
+        record(PASS if path.exists() else FAIL,
+               f"{label} exists" if path.exists()
+               else f"{label} missing — check exercise3_rasa/ structure")
+
     actions_path = ROOT / "exercise3_rasa" / "actions" / "actions.py"
     if actions_path.exists():
         source = actions_path.read_text()
@@ -235,6 +247,14 @@ def check_ex3() -> None:
             "Cutoff guard is uncommented in exercise3_rasa/actions/actions.py"
             if guard_present
             else "Cutoff guard still commented out — uncomment the TASK B block in actions.py",
+        )
+        # CALM: no FormValidationAction needed
+        has_form_action = "FormValidationAction" in source
+        record(
+            PASS if not has_form_action else WARN,
+            "No FormValidationAction (correct — CALM handles slot extraction via LLM)"
+            if not has_form_action
+            else "FormValidationAction found — not needed in CALM (from_llm slots handle extraction)",
         )
     else:
         record(FAIL, "exercise3_rasa/actions/actions.py not found")
@@ -273,7 +293,7 @@ def check_ex3() -> None:
            f"TASK_B_FILES_CHANGED lists at least 1 file (found {len(files) if isinstance(files, list) else 0})")
 
     for var, min_w in [("OUT_OF_SCOPE_COMPARISON", 40), ("SETUP_COST_VALUE", 40),
-                        ("TASK_B_HOW_YOU_TESTED", 20), ("TASK_B_RASA_VS_LANGGRAPH", 30)]:
+                        ("TASK_B_HOW_YOU_TESTED", 20), ("CALM_VS_OLD_RASA", 30)]:
         val = getattr(a, var, "")
         wc  = word_count(val)
         record(

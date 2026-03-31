@@ -33,7 +33,7 @@ help:
 	@echo ''
 	@echo '$(YELLOW)First-time setup (run these once, in order):$(RESET)'
 	@echo '  $(GREEN)make install$(RESET)            Set up main environment  (Python 3.14)'
-	@echo '  $(GREEN)make install-rasa$(RESET)       Set up Rasa environment  (Python 3.10)'
+	@echo '  $(GREEN)make install-rasa$(RESET)       Set up Rasa Pro env     (Python 3.10, needs licence)'
 	@echo '  $(GREEN)make smoke$(RESET)              Verify your API key works'
 	@echo ''
 	@echo '$(YELLOW)Self-check (no API calls needed):$(RESET)'
@@ -113,8 +113,8 @@ install: check-uv check-env ## Set up main environment (Python 3.14, exercises 1
 	@echo "  Run '$(GREEN)make smoke$(RESET)' to verify your API key."
 
 .PHONY: install-rasa
-install-rasa: check-uv ## Set up Rasa environment (Python 3.10, Exercise 3 only)
-	@echo "$(BLUE)Setting up Rasa environment (Python 3.10)...$(RESET)"
+install-rasa: check-uv ## Set up Rasa Pro environment (Python 3.10, Exercise 3 only)
+	@echo "$(BLUE)Setting up Rasa Pro environment (Python 3.10 + CALM)...$(RESET)"
 	@echo "$(YELLOW)Note: This takes 3–5 minutes the first time — Rasa has many dependencies.$(RESET)"
 	cd $(RASA_DIR) && $(UV) sync
 	@echo "$(GREEN)✓ Rasa environment ready.$(RESET)"
@@ -192,9 +192,15 @@ ex2-d: ## Task D — agent graph structure (paste output into mermaid.live)
 # 🎙️ Exercise 3 — Rasa Confirmation Agent
 # ==============================================================================
 .PHONY: ex3-train
-ex3-train: ## Train the Rasa model (run once, or after changing .yml files)
-	@echo "$(MAGENTA)Exercise 3 — Training Rasa model...$(RESET)"
-	@echo "$(YELLOW)This takes about 2 minutes.$(RESET)"
+ex3-train: ## Train the Rasa Pro CALM model (run once, or after changing .yml files)
+	@echo "$(MAGENTA)Exercise 3 — Training Rasa Pro CALM model...$(RESET)"
+	@if [ -z "$(RASA_PRO_LICENSE)" ]; then \
+		echo "$(RED)✗ RASA_PRO_LICENSE not set.$(RESET)"; \
+		echo "  Add it to your .env file. Your instructor will provide the licence key."; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)This takes about 2 minutes (embedding model download on first run).$(RESET)"
+	@echo "$(BLUE)Note: CALM trains much faster than old Rasa — no NLU examples to learn.$(RESET)"
 	@echo ""
 	cd $(RASA_DIR) && $(UV) run rasa train
 	@echo ""
@@ -217,9 +223,12 @@ ex3-chat: ## Terminal 2 — chat with the Rasa agent (run AFTER ex3-actions is r
 	@echo "$(YELLOW)Make sure 'make ex3-actions' is running in another terminal first.$(RESET)"
 	@echo ""
 	@echo "$(BLUE)Conversation scripts to run:$(RESET)"
-	@echo "  1. Happy path:     hello → confirm booking → 160 guests → ~50 vegan → £200 deposit"
-	@echo "  2. Deposit too high: same but use a deposit above £300 (e.g. £500)"
-	@echo "  3. Out of scope:   ask about parking or AV equipment mid-conversation"
+	@echo "  1. Happy path:     'calling to confirm a booking' → 160 guests → ~50 vegan → £200 deposit"
+	@echo "  2. Deposit too high: same flow, but use a deposit above £300"
+	@echo "  3. Out of scope:   mid-conversation ask about parking or AV equipment"
+	@echo ""
+	@echo "$(YELLOW)CALM note: the LLM understands 'about 160 people' or 'one-sixty' as 160.$(RESET)"
+	@echo "$(YELLOW)No regex needed — that's the from_llm slot mapping at work.$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Copy-paste your terminal output into week1/answers/ex3_answers.py$(RESET)"
 	@echo ""

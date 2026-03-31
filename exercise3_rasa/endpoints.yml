@@ -1,2 +1,49 @@
+# endpoints.yml
+#
+# In Rasa Pro CALM, endpoints.yml does two jobs:
+#   1. Tells Rasa where your custom action server is running.
+#   2. Defines the LLM model groups used by CompactLLMCommandGenerator.
+#
+# MODEL GROUPS
+# ------------
+# nebius_llm:
+#   The language model that reads user messages and flow descriptions
+#   to decide which flow to trigger and which slots to fill.
+#   We use Llama-3.3-70B — the same model as the rest of the exercises.
+#
+# nebius_embeddings:
+#   Used for semantic similarity when matching user input to flows
+#   (flow_retrieval in config.yml). Qwen3-Embedding-8B is a strong,
+#   fast embedding model available on Nebius.
+#
+# NEBIUS_KEY vs NEBIUS_API_KEY
+# ----------------------------
+# This project uses ${NEBIUS_KEY} to match the root project's .env file.
+# Rasa substitutes environment variables using the ${VAR_NAME} syntax.
+
+# ==============================================================================
+# Action Server
+# ==============================================================================
 action_endpoint:
   url: "http://localhost:5055/webhook"
+
+# ==============================================================================
+# LLM Model Groups (Rasa Pro CALM)
+# ==============================================================================
+model_groups:
+  - id: nebius_llm
+    models:
+      - provider: self-hosted
+        model: meta-llama/Llama-3.3-70B-Instruct
+        api_base: "https://api.tokenfactory.nebius.com/v1"
+        api_key: ${NEBIUS_KEY}
+        temperature: 0.1
+        max_tokens: 512
+        timeout: 30
+
+  - id: nebius_embeddings
+    models:
+      - provider: openai
+        model: Qwen/Qwen3-Embedding-8B
+        api_base: "https://api.tokenfactory.nebius.com/v1"
+        api_key: ${NEBIUS_KEY}

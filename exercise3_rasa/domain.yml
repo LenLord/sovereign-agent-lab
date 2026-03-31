@@ -1,81 +1,70 @@
+# domain.yml
+#
+# WHY THERE ARE NO INTENTS HERE
+# ------------------------------
+# In the old Rasa (open source 3.x), you had to define intents here and
+# provide training examples in nlu.yml. The NLU classifier would then
+# match user messages to those intents.
+#
+# In Rasa Pro CALM, the LLM reads the *descriptions* in data/flows.yml
+# and decides which flow to trigger. No intent classification needed.
+# This means:
+#   - No nlu.yml needed
+#   - No rules.yml needed
+#   - No intents section here
+#   - No forms section here
+#
+# SLOT MAPPINGS: from_llm vs from_text
+# ------------------------------------
+# Old approach: type: from_text
+#   Captured whatever the user said verbatim. Required our Python code
+#   to parse "about 160 people" → 160.0 using regex.
+#
+# CALM approach: type: from_llm
+#   The LLM extracts the value. "About 160 people", "one-sixty", and
+#   "we're expecting around 160" all become 160.0 automatically.
+#   No regex. No validation class. The LLM handles natural language.
+#
+# type: controlled
+#   These slots are set by custom actions (action_validate_booking),
+#   not by user input.
+
 version: "3.1"
 
-# ── Intents ───────────────────────────────────────────────────────────────────
-# Everything the pub manager might be trying to do.
-# Anything not listed here → out_of_scope.
-
-intents:
-  - greet
-  - start_booking_confirmation
-  - affirm
-  - deny
-  - out_of_scope
-
-# ── Slots ─────────────────────────────────────────────────────────────────────
-# The agent's clipboard. Information collected during the conversation.
-# from_text means: capture whatever the user says when this slot is being asked.
-# The form validation action in actions.py parses the number from the raw text.
-#
-# TASK B: Add requires_quiet_room slot here, in forms, and in responses.
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: false
 
 slots:
   guest_count:
-    type: any
-    influence_conversation: true
+    type: float
     mappings:
-      - type: from_text
-        conditions:
-          - active_loop: booking_confirmation_form
-            requested_slot: guest_count
+      - type: from_llm
 
   vegan_count:
-    type: any
-    influence_conversation: true
+    type: float
     mappings:
-      - type: from_text
-        conditions:
-          - active_loop: booking_confirmation_form
-            requested_slot: vegan_count
+      - type: from_llm
 
   deposit_amount_gbp:
-    type: any
-    influence_conversation: true
+    type: float
     mappings:
-      - type: from_text
-        conditions:
-          - active_loop: booking_confirmation_form
-            requested_slot: deposit_amount_gbp
+      - type: from_llm
 
+  # Set by action_validate_booking — not collected from user input
   booking_valid:
     type: bool
-    influence_conversation: true
     mappings:
-      - type: custom
+      - type: controlled
 
   rejection_reason:
     type: text
-    influence_conversation: false
     mappings:
-      - type: custom
-
-# ── Forms ─────────────────────────────────────────────────────────────────────
-# A form collects required slots in sequence, automatically asking for each.
-
-forms:
-  booking_confirmation_form:
-    required_slots:
-      - guest_count
-      - vegan_count
-      - deposit_amount_gbp
-
-# ── Responses ─────────────────────────────────────────────────────────────────
+      - type: controlled
 
 responses:
-  utter_greet:
-    - text: >
-        Hello, you've reached the Edinburgh event booking line.
-        I can confirm venue bookings for tonight's event.
-        How can I help?
+  # CALM calls utter_ask_{slot_name} automatically when collecting a slot.
+  # These are the questions the agent asks in order.
 
   utter_ask_guest_count:
     - text: "How many guests are you confirming for tonight's event?"
@@ -86,18 +75,17 @@ responses:
   utter_ask_deposit_amount_gbp:
     - text: "What deposit amount in GBP are you proposing to secure the booking?"
 
+  # Used when a request falls outside the confirm_booking flow scope.
   utter_out_of_scope:
     - text: >
         I can only help with confirming tonight's venue booking.
         For anything else, please contact the event organiser directly.
 
+  # Fallback when CALM can't determine what the user wants.
   utter_default:
     - text: >
-        I didn't quite catch that. I'm here to confirm tonight's venue booking —
-        could you start by telling me how many guests you're expecting?
-
-# ── Actions ───────────────────────────────────────────────────────────────────
+        I didn't quite catch that. I'm here to confirm tonight's
+        venue booking — how many guests are you expecting?
 
 actions:
-  - validate_booking_confirmation_form
   - action_validate_booking

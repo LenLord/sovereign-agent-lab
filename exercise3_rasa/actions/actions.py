@@ -1,159 +1,86 @@
 """
-Exercise 3 — Rasa Custom Actions
-==================================
+Exercise 3 — Rasa Pro CALM Custom Actions
+==========================================
 
-WHAT THIS FILE DOES
---------------------
-Two action classes that contain all the business logic for the
-Edinburgh booking confirmation agent.
+WHY THIS FILE IS SIMPLER THAN OLD RASA TUTORIALS
+-------------------------------------------------
+In old Rasa (open source 3.x), you needed two classes:
 
   1. ValidateBookingConfirmationForm
-     Runs during slot collection. Called automatically by Rasa each time
-     the user responds to an utter_ask_<slot_name> question.
-     Its job: extract a number from whatever the user typed.
+     A FormValidationAction subclass with validate_guest_count(),
+     validate_vegan_count(), etc. Each method used regex to parse
+     "about 160 people" → 160.0 from raw text.
 
   2. ActionValidateBooking
-     Runs once, after the form has collected all three slots.
-     Its job: apply Rod's business constraints and either confirm
-     or escalate the booking.
+     The post-form business rule checker.
 
-WHY BUSINESS LOGIC IS HERE AND NOT IN THE PROMPT
--------------------------------------------------
-If you wrote Rod's limits into a system prompt ("only confirm if the deposit
-is under £300") the model could reason its way around them — maybe the
-manager says "it's really just a £50 holding fee plus £300 insurance, so
-really it's under the limit", and the model agrees. That kind of semantic
-flexibility is a feature in a research agent. In a confirmation agent that
-makes legally binding commitments, it is a liability.
+In Rasa Pro CALM, the LLM handles slot extraction via `from_llm` mappings
+in domain.yml. "About 160 people", "one-sixty", and "we're expecting 160"
+all become 160.0 without any Python code on our side.
 
-Python code doesn't negotiate. `if deposit > MAX_DEPOSIT_GBP: escalate()`
-runs the same way every time, regardless of how the deposit was described.
+This means: we only need ONE action class here.
+
+The architecture is cleaner:
+  LLM handles language understanding  →  from_llm slot mappings in domain.yml
+  Python enforces business rules      →  ActionValidateBooking below
+
+This separation is the key lesson of Exercise 3.
+The LLM decides what the user means.
+Python decides whether that satisfies Rod's requirements.
+One is probabilistic. The other is deterministic.
+For legally and financially binding decisions, you want the second kind.
 
 TASK B — CUTOFF GUARD
 ----------------------
 Your task is to uncomment the four-line block marked "TASK B" below.
 
-It adds a time-based guard: if it is past 16:45, the agent escalates
-immediately after collecting the slots — there isn't enough time to
-process the booking before Rod's 5 PM deadline.
+It adds a time-based guard: if it is past 16:45, escalate immediately —
+there isn't enough time to process the booking before Rod's 5 PM deadline.
 
 Steps:
-  1. Uncomment the block (remove the # from each of the four lines)
+  1. Uncomment the block (remove the # from each of the four lines inside it)
   2. Save this file
-  3. Retrain: cd exercise3_rasa && rasa train
-  4. Restart the action server: rasa run actions
+  3. Retrain: cd exercise3_rasa && uv run rasa train
+  4. Restart the action server: uv run rasa run actions
   5. Test by temporarily making the condition always True:
-         if True:   # ← temporary
+         if True:   ← change just for testing
      Run a conversation, verify it escalates, then revert.
   6. Set TASK_B_DONE = True in week1/answers/ex3_answers.py
 """
 
 import datetime
-import re
-from typing import Any, Dict, List, Optional, Text
+from typing import Any, Dict, List, Text
 
 from rasa_sdk import Action, Tracker
 from rasa_sdk.events import SlotSet
 from rasa_sdk.executor import CollectingDispatcher
-from rasa_sdk.forms import FormValidationAction
-from rasa_sdk.types import DomainDict
 
-# ── Business constraints ───────────────────────────────────────────────────────
-# Written as Python constants, not prompt text.
-# Change them here; they take effect on the next restart. No retraining needed.
+# ── Business constraints ──────────────────────────────────────────────────────
+# Written as Python constants, not prompts.
+# Change them here; they take effect on the next restart.
+# The LLM cannot talk its way around these — the Python check always runs.
 
 MAX_GUESTS      = 170    # venue hard capacity ceiling
 MAX_DEPOSIT_GBP = 300    # Rod's maximum authorised deposit
 MAX_VEGAN_RATIO = 0.80   # flag if more than 80% of guests need vegan meals
 
 
-# ── Utility ───────────────────────────────────────────────────────────────────
-
-def _parse_number(text: Any) -> Optional[float]:
-    """
-    Extract the first number from whatever the user typed.
-
-    Examples that all return 160.0:
-      "160"
-      "about 160 guests"
-      "we have 160 confirmed"
-      "160 people, maybe a few more"
-
-    Returns None if no number found, which causes the form to re-ask.
-    """
-    match = re.search(r"\d+(?:\.\d+)?", str(text))
-    return float(match.group()) if match else None
-
-
-# ── Form validation ───────────────────────────────────────────────────────────
-
-class ValidateBookingConfirmationForm(FormValidationAction):
-    """
-    Validates each slot as the form collects it.
-
-    Rasa calls validate_<slot_name>() automatically after the user responds
-    to utter_ask_<slot_name>.
-
-    Return {slot_name: value}  →  accepted, form moves to next slot
-    Return {slot_name: None}   →  rejected, form re-asks the question
-    """
-
-    def name(self) -> Text:
-        return "validate_booking_confirmation_form"
-
-    def validate_guest_count(
-        self,
-        slot_value: Any,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: DomainDict,
-    ) -> Dict[Text, Any]:
-        number = _parse_number(slot_value)
-        if number and number > 0:
-            return {"guest_count": number}
-        dispatcher.utter_message(
-            text="I need a number for the guest count. How many guests are attending?"
-        )
-        return {"guest_count": None}
-
-    def validate_vegan_count(
-        self,
-        slot_value: Any,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: DomainDict,
-    ) -> Dict[Text, Any]:
-        number = _parse_number(slot_value)
-        if number is not None and number >= 0:
-            return {"vegan_count": number}
-        dispatcher.utter_message(
-            text="I need a number — how many guests require vegan meals?"
-        )
-        return {"vegan_count": None}
-
-    def validate_deposit_amount_gbp(
-        self,
-        slot_value: Any,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: DomainDict,
-    ) -> Dict[Text, Any]:
-        number = _parse_number(slot_value)
-        if number is not None and number >= 0:
-            return {"deposit_amount_gbp": number}
-        dispatcher.utter_message(
-            text="I need a GBP amount for the deposit. How much are you proposing?"
-        )
-        return {"deposit_amount_gbp": None}
-
-
-# ── Post-form business logic ──────────────────────────────────────────────────
-
 class ActionValidateBooking(Action):
     """
-    Applies Rod's constraints after the form collects all slots.
-    Guards run in order. The first that fails causes escalation.
-    If all pass, the booking is confirmed immediately.
+    Applies Rod's constraints after CALM has collected all three slots.
+
+    In CALM, the LLM fills slots via from_llm mappings. This action
+    runs after guest_count, vegan_count, and deposit_amount_gbp are all
+    collected and runs the deterministic business rule checks.
+
+    Each "Guard" is a separate Python check. The first that fails causes
+    the agent to escalate — ask the manager to hold while it calls Rod.
+    If all pass, the booking is confirmed.
+
+    WHY NOT IN A PROMPT?
+    If you wrote "only confirm if deposit is under £300" in a prompt,
+    the LLM might reason: "the manager said it's a £250 fee plus £100
+    insurance, so technically it's under £300 each." Python doesn't negotiate.
     """
 
     def name(self) -> Text:
@@ -166,12 +93,13 @@ class ActionValidateBooking(Action):
         domain: Dict[Text, Any],
     ) -> List[Dict[Text, Any]]:
 
+        # In CALM, from_llm slots are already the right type (float).
+        # No parsing needed — the LLM did that work.
         guests  = float(tracker.get_slot("guest_count")       or 0)
         vegans  = float(tracker.get_slot("vegan_count")       or 0)
         deposit = float(tracker.get_slot("deposit_amount_gbp") or 0)
 
         def escalate(reason: str) -> List[Dict]:
-            """Send the escalation message and record the reason."""
             dispatcher.utter_message(
                 text=(
                     "I need to check one thing with the organiser before I can confirm. "
@@ -185,17 +113,7 @@ class ActionValidateBooking(Action):
             ]
 
         # ── TASK B: Cutoff Guard ──────────────────────────────────────────────
-        # Uncomment these four lines to implement the time-based escalation.
-        #
-        # HOW IT WORKS:
-        # If the current time is past 16:45 (4:45 PM), the agent escalates
-        # immediately — not enough time remains to process a confirmation
-        # before Rod's 5 PM deadline.
-        #
-        # TO TEST WITHOUT WAITING UNTIL 4:45 PM:
-        # Temporarily change the condition to: if True:
-        # Run a conversation and verify it escalates after the form completes.
-        # Then revert to the real condition before submitting.
+        # Uncomment these four lines to add the time-based escalation guard.
         #
         # now = datetime.datetime.now()
         # if now.hour > 16 or (now.hour == 16 and now.minute >= 45):
@@ -204,21 +122,21 @@ class ActionValidateBooking(Action):
         #         " before the 5 PM deadline"
         #     )
 
-        # ── Guard 1: Capacity ─────────────────────────────────────────────────
+        # ── Guard 1: Venue capacity ───────────────────────────────────────────
         if guests > MAX_GUESTS:
             return escalate(
                 f"the guest count ({int(guests)}) exceeds the venue's "
                 f"maximum capacity of {MAX_GUESTS}"
             )
 
-        # ── Guard 2: Deposit ──────────────────────────────────────────────────
+        # ── Guard 2: Deposit authorisation limit ──────────────────────────────
         if deposit > MAX_DEPOSIT_GBP:
             return escalate(
                 f"a deposit of £{deposit:.0f} exceeds the organiser's "
                 f"authorised limit of £{MAX_DEPOSIT_GBP}"
             )
 
-        # ── Guard 3: Vegan ratio ──────────────────────────────────────────────
+        # ── Guard 3: Unusually high vegan ratio ───────────────────────────────
         vegan_ratio = vegans / guests if guests > 0 else 0
         if vegan_ratio > MAX_VEGAN_RATIO:
             return escalate(
@@ -226,7 +144,7 @@ class ActionValidateBooking(Action):
                 f"({vegan_ratio:.0%}) is unusually high — needs organiser confirmation"
             )
 
-        # ── All guards passed ─────────────────────────────────────────────────
+        # ── All guards passed: confirm ────────────────────────────────────────
         dispatcher.utter_message(
             text=(
                 f"Thank you — booking confirmed. "

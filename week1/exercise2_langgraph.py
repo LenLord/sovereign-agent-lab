@@ -241,8 +241,11 @@ def task_d() -> str:
     mermaid = agent.get_graph().draw_mermaid()
     print(mermaid)
     print()
-    print("  Now open exercise3_rasa/data/rules.yml")
+    print("  Now open exercise3_rasa/data/flows.yml")
     print("  Both files describe the agent's behaviour — compare them.")
+    print()
+    print("  LangGraph: one loop node, model decides the path at runtime")
+    print("  Rasa CALM: flows.yml — every task described explicitly, LLM picks the flow")
     print("  Record your comparison in week1/answers/ex2_answers.py → TASK_D_COMPARISON")
     return mermaid
 
