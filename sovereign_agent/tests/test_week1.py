@@ -146,7 +146,7 @@ class TestGenerateEventFlyer:
     def test_returns_required_keys(self):
         """The function must return a dict with success, prompt_used, image_url."""
         result = _call(generate_event_flyer,
-                       venue_name="The Haymarket Vaults",
+                       pub_name="The Haymarket Vaults",
                        guest_count=160,
                        event_theme="AI Meetup")
         assert "success" in result, "Must have 'success' key"
@@ -156,7 +156,7 @@ class TestGenerateEventFlyer:
     def test_prompt_includes_venue_name(self):
         """The prompt sent to the image model should mention the venue."""
         result = _call(generate_event_flyer,
-                       venue_name="The Haymarket Vaults",
+                       pub_name="The Haymarket Vaults",
                        guest_count=160,
                        event_theme="AI Meetup")
         assert "Haymarket" in result["prompt_used"], \
@@ -168,7 +168,7 @@ class TestGenerateEventFlyer:
         If it fails with 'STUB', go back and complete the TODO in venue_tools.py.
         """
         result = _call(generate_event_flyer,
-                       venue_name="The Haymarket Vaults",
+                       pub_name="The Haymarket Vaults",
                        guest_count=160,
                        event_theme="AI Meetup")
         # This test will FAIL until you implement the tool.
@@ -181,7 +181,7 @@ class TestGenerateEventFlyer:
     def test_image_url_is_string_when_successful(self):
         """When success=True, image_url must be a non-empty string."""
         result = _call(generate_event_flyer,
-                       venue_name="The Haymarket Vaults",
+                       pub_name="The Haymarket Vaults",
                        guest_count=160,
                        event_theme="AI Meetup")
         if result.get("success"):

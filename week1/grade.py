@@ -236,7 +236,7 @@ def check_ex3() -> None:
 
     actions_path = ROOT / "exercise3_rasa" / "actions" / "actions.py"
     if actions_path.exists():
-        source = actions_path.read_text()
+        source = actions_path.read_text(encoding="utf-8")
         guard_present = (
             "datetime.datetime.now()" in source
             and "now.hour" in source
