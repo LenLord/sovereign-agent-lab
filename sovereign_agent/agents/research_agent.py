@@ -122,22 +122,30 @@ def run_research_agent(task: str, max_turns: int = 8) -> dict:
         role    = getattr(m, "type", "unknown")
         content = m.content
 
-        # Tool-call messages have structured list content
-        if isinstance(content, list):
-            for block in content:
-                if isinstance(block, dict) and block.get("type") == "tool_use":
-                    entry = {
-                        "tool": block["name"],
-                        "args": block.get("input", {}),
-                    }
-                    tool_calls_made.append(entry)
-                    full_trace.append({"role": "tool_call", **entry})
-            continue
+        # Extract tool calls from AIMessage.tool_calls (OpenAI-compatible format)
+        if hasattr(m, "tool_calls") and m.tool_calls:
+            for tc in m.tool_calls:
+                entry = {
+                    "tool": tc["name"],
+                    "args": tc.get("args", {}),
+                }
+                tool_calls_made.append(entry)
+                full_trace.append({"role": "tool_call", **entry})
 
-        if content:
-            full_trace.append({"role": role, "content": str(content)})
+        if isinstance(content, str) and content:
+            full_trace.append({"role": role, "content": content})
             if role == "ai":
-                final_answer = str(content)
+                final_answer = content
+        elif isinstance(content, list):
+            text = " ".join(
+                block if isinstance(block, str)
+                else block.get("text", "")
+                for block in content
+            ).strip()
+            if text:
+                full_trace.append({"role": role, "content": text})
+                if role == "ai":
+                    final_answer = text
 
     return {
         "final_answer":    final_answer,
