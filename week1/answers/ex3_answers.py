@@ -119,14 +119,15 @@ with no awareness that the topic had shifted.
 
 # ── Task B: Cutoff guard ───────────────────────────────────────────────────
 
-TASK_B_DONE = None   # True or False
+TASK_B_DONE = True   # True or False
 
 # List every file you changed.
-TASK_B_FILES_CHANGED = []
+TASK_B_FILES_CHANGED = ["exercise3_rasa/actions/actions.py "]
 
 # How did you test that it works? Min 20 words.
 TASK_B_HOW_YOU_TESTED = """
-FILL ME IN
+I uncommented code in actions.py file and changed the condition from complex to just True.
+After that I ran happy-case scenario to check that in the end of conversation bot would escalate the booking.
 """
 
 # ── CALM vs Old Rasa ───────────────────────────────────────────────────────
@@ -145,12 +146,11 @@ FILL ME IN
 # Min 30 words.
 
 CALM_VS_OLD_RASA = """
-FILL ME IN
-
-Think about:
-- What does the LLM handle now that Python handled before?
-- What does Python STILL handle, and why (hint: business rules)?
-- Is there anything you trusted more in the old approach?
+The LLM now does what regex and nlu.yml used to do — parsing "about 160 people" into 160.0 and
+figuring out the user wants to confirm a booking. Python still handles the business rule guards
+(capacity, deposit limit, vegan ratio) because those are deterministic checks the LLM shouldn't
+negotiate around. The old regex approach was more predictable, but it would break on anything
+you didn't write a pattern for, like "one-sixty" or "roughly 160".
 """
 
 # ── The setup cost ─────────────────────────────────────────────────────────
@@ -164,10 +164,11 @@ Think about:
 # Min 40 words.
 
 SETUP_COST_VALUE = """
-FILL ME IN
-
-Be specific. What can the Rasa CALM agent NOT do that LangGraph could?
-Is that a feature or a limitation for the confirmation use case?
-Think about: can the CALM agent improvise a response it wasn't trained on?
-Can it call a tool that wasn't defined in flows.yml?
+CALM needs way more config files and a training step compared to LangGraph where you just define
+Python functions and go. But the tradeoff is that the CALM agent can't improvise — it can't call a
+tool not in flows.yml, can't invent a new conversation path, can't freestyle a response. For booking
+confirmation that's exactly what you want. The LangGraph agent could hallucinate a venue or offer
+to look up train times, which is great for open-ended research but risky for financially binding
+decisions. So the setup cost buys you predictability — every path the agent can take is visible
+in flows.yml before you deploy it.
 """
