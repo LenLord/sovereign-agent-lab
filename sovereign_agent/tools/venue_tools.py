@@ -88,7 +88,7 @@ VENUES = {
 
 @tool
 def check_pub_availability(
-    pub_name: str,
+    venue_name: str,
     required_capacity: int,
     requires_vegan: bool,
 ) -> str:
@@ -99,12 +99,12 @@ def check_pub_availability(
     Do NOT use this to browse or search — you must already know the pub name.
     Known venues: The Albanach, The Haymarket Vaults, The Guilford Arms, The Bow Bar.
     """
-    venue = VENUES.get(pub_name)
+    venue = VENUES.get(venue_name)
     if not venue:
         return json.dumps(
             {
                 "success": False,
-                "error": f"Venue not found: '{pub_name}'",
+                "error": f"Venue not found: '{venue_name}'",
                 "known_venues": list(VENUES.keys()),
             }
         )
@@ -118,7 +118,7 @@ def check_pub_availability(
     return json.dumps(
         {
             "success": True,
-            "pub_name": pub_name,
+            "venue_name": venue_name,
             "address": venue["address"],
             "capacity": venue["capacity"],
             "vegan": venue["vegan"],

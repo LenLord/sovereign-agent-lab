@@ -46,7 +46,7 @@ class TestCheckPubAvailability:
     def test_available_venue_meets_all(self):
         """A venue with capacity 160, vegan=True, and status=available should pass."""
         result = _call(check_pub_availability,
-                       pub_name="The Haymarket Vaults",
+                       venue_name="The Haymarket Vaults",
                        required_capacity=160,
                        requires_vegan=True)
         assert result["success"] is True
@@ -55,7 +55,7 @@ class TestCheckPubAvailability:
     def test_full_venue_fails_constraints(self):
         """The Bow Bar is full — meets_all_constraints must be False."""
         result = _call(check_pub_availability,
-                       pub_name="The Bow Bar",
+                       venue_name="The Bow Bar",
                        required_capacity=160,
                        requires_vegan=True)
         assert result["success"] is True
@@ -65,7 +65,7 @@ class TestCheckPubAvailability:
     def test_insufficient_capacity_fails(self):
         """The Bow Bar has capacity 80, which is less than 160."""
         result = _call(check_pub_availability,
-                       pub_name="The Bow Bar",
+                       venue_name="The Bow Bar",
                        required_capacity=160,
                        requires_vegan=False)
         assert result["success"] is True
@@ -74,7 +74,7 @@ class TestCheckPubAvailability:
     def test_no_vegan_fails_when_required(self):
         """The Guilford Arms has vegan=False. Should fail when vegan is required."""
         result = _call(check_pub_availability,
-                       pub_name="The Guilford Arms",
+                       venue_name="The Guilford Arms",
                        required_capacity=100,
                        requires_vegan=True)
         assert result["success"] is True
@@ -83,7 +83,7 @@ class TestCheckPubAvailability:
     def test_unknown_venue_returns_error(self):
         """A venue not in VENUES should return success=False with known_venues list."""
         result = _call(check_pub_availability,
-                       pub_name="The Imaginary Pub",
+                       venue_name="The Imaginary Pub",
                        required_capacity=100,
                        requires_vegan=False)
         assert result["success"] is False
@@ -95,7 +95,7 @@ class TestCheckPubAvailability:
     def test_returns_address(self):
         """A successful lookup should include the address."""
         result = _call(check_pub_availability,
-                       pub_name="The Albanach",
+                       venue_name="The Albanach",
                        required_capacity=100,
                        requires_vegan=False)
         assert result["success"] is True
@@ -105,7 +105,7 @@ class TestCheckPubAvailability:
     def test_returns_json_string(self):
         """The raw return value must be a valid JSON string."""
         raw_fn = check_pub_availability.func if hasattr(check_pub_availability, "func") else check_pub_availability
-        raw = raw_fn(pub_name="The Albanach", required_capacity=100, requires_vegan=False)
+        raw = raw_fn(venue_name="The Albanach", required_capacity=100, requires_vegan=False)
         assert isinstance(raw, str), "Tool must return a string, not a dict"
         parsed = json.loads(raw)
         assert isinstance(parsed, dict)
@@ -151,7 +151,7 @@ class TestGenerateEventFlyer:
     def test_returns_required_keys(self):
         """The function must return a dict with success, prompt_used, image_url."""
         result = _call(generate_event_flyer,
-                       pub_name="The Haymarket Vaults",
+                       venue_name="The Haymarket Vaults",
                        guest_count=160,
                        event_theme="AI Meetup")
         assert "success" in result, "Must have 'success' key"
@@ -161,7 +161,7 @@ class TestGenerateEventFlyer:
     def test_prompt_includes_venue_name(self):
         """The prompt should mention the venue."""
         result = _call(generate_event_flyer,
-                       pub_name="The Haymarket Vaults",
+                       venue_name="The Haymarket Vaults",
                        guest_count=160,
                        event_theme="AI Meetup")
         assert "Haymarket" in result["prompt_used"], \
@@ -176,7 +176,7 @@ class TestGenerateEventFlyer:
         and the implementation in sovereign_agent/tools/venue_tools.py.
         """
         result = _call(generate_event_flyer,
-                       pub_name="The Haymarket Vaults",
+                       venue_name="The Haymarket Vaults",
                        guest_count=160,
                        event_theme="AI Meetup")
         assert result.get("success") is True, \
@@ -188,7 +188,7 @@ class TestGenerateEventFlyer:
     def test_image_url_is_non_empty_string(self):
         """image_url must always be a non-empty string when success=True."""
         result = _call(generate_event_flyer,
-                       pub_name="The Haymarket Vaults",
+                       venue_name="The Haymarket Vaults",
                        guest_count=160,
                        event_theme="AI Meetup")
         assert result.get("success") is True
